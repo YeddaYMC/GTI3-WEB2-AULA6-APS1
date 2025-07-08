@@ -1,58 +1,94 @@
+<?php
+
+// facilitar a manutenção e leitura do código
+define('NOTA_APROVACAO', 70);
+define('FUSO_HORARIO', 'America/Sao_Paulo');
+
+date_default_timezone_set(FUSO_HORARIO);
+
+//  array vazio como padrão para evitar erros
+$notas_input = $_POST['notas'] ?? [];
+$alunos_processados = [];
+$num_max_avaliacoes = 0;
+
+
+if (!empty($notas_input) && is_array($notas_input)) {
+    foreach ($notas_input as $aluno_input) {
+        // Pula para o próximo se o dado não for um array, para maior robustez
+        if (!is_array($aluno_input)) continue;
+
+        $nome = $aluno_input['Aluno'] ?? 'Não informado';
+        $avaliacoes = $aluno_input['Avaliacao'] ?? [];
+
+        
+        if (!is_array($avaliacoes)) $avaliacoes = [];
+
+        $num_max_avaliacoes = max($num_max_avaliacoes, count($avaliacoes));
+
+        
+        $soma = array_sum($avaliacoes);
+        $qtd = count($avaliacoes);
+        $media = $qtd > 0 ? $soma / $qtd : 0;
+
+        
+        $situacao = $media >= NOTA_APROVACAO ? 'Aprovado' : 'Reprovado';
+
+        $alunos_processados[] = ['nome' => $nome, 'avaliacoes' => $avaliacoes, 'media' => $media, 'situacao' => $situacao];
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="WIDTH=device-width, INITIAL-SCALE=1.0">
-    <title>RELATÓRIO DE NOTAS</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Relatório de Notas</title>
+    <link rel="stylesheet" href="APS.css">
 </head>
 <body>
-    <div class="report-container">
-        <h1>RELATÓRIO DE NOTAS</h1>
-        <p>DATA: <?php echo date('d/m/Y'); ?></p>
+    <div class="container">
+        <h1>Relatório de Notas</h1>
+        <p>Data de geração: <strong><?= date('d/m/Y') ?></strong></p>
 
-        <?php
-        IF (isset($_POST['notas']) && is_array($_POST['notas'])) {
-            $NOTAS_ALUNOS = $_POST['notas'];
+        <?php if (!empty($alunos_processados)): ?>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Aluno</th>
+                        <?php for ($i = 1; $i <= $num_max_avaliacoes; $i++): ?>
+                            <th>Avaliação <?= $i ?></th>
+                        <?php endfor; ?>
+                        <th>Média Final</th>
+                        <th>Situação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($alunos_processados as $aluno): 
+                        $is_aprovado = $aluno['situacao'] === 'Aprovado';
+                        $classe_linha = $is_aprovado ? 'aprovado' : 'reprovado';
+                        $emoji = $is_aprovado ? '🥳' : '😥';
+                    ?>
+                        <tr class="<?= $classe_linha ?>">
+                            <td><?= htmlspecialchars($aluno['nome']) ?></td>
+                            <?php for ($i = 0; $i < $num_max_avaliacoes; $i++): ?>
+                                <td>
+                                    <?= isset($aluno['avaliacoes'][$i]) ? htmlspecialchars($aluno['avaliacoes'][$i]) : '–' ?>
+                                </td>
+                            <?php endfor; ?>
+                            <td><?= number_format($aluno['media'], 2, ',', '.') ?></td>
+                            <td>
+                                <span class="carinha"><?= $emoji ?></span>
+                                <?= htmlspecialchars($aluno['situacao']) ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <p>Nenhum dado de nota foi enviado. Por favor, volte e preencha o formulário.</p>
+        <?php endif; ?>
 
-            echo "<table>";
-            echo "<thead><tr><th>ALUNO</th>";
-            IF (!empty($NOTAS_ALUNOS)) {
-                $NUM_AVALIACOES = count(reset($NOTAS_ALUNOS)['Avaliacao']);
-                FOR ($I = 1; $I <= $NUM_AVALIACOES; $I++) {
-                    echo "<th>AVALIAÇÃO $I</th>";
-                }
-                echo "<th>MÉDIA</th><th>SITUAÇÃO</th></tr></thead><tbody>";
-
-                FOREACH ($NOTAS_ALUNOS AS $ALUNO_NOTAS) {
-                    echo "<tr><td>" . htmlspecialchars($ALUNO_NOTAS['Aluno']) . "</td>";
-                    $TOTAL_NOTAS = 0;
-                    IF (isset($ALUNO_NOTAS['Avaliacao']) && is_array($ALUNO_NOTAS['Avaliacao'])) {
-                        FOREACH ($ALUNO_NOTAS['Avaliacao'] AS $NOTA) {
-                            echo "<td>" . htmlspecialchars($NOTA) . "</td>";
-                            $TOTAL_NOTAS += $NOTA;
-                        }
-                        $MEDIA = count($ALUNO_NOTAS['Avaliacao']) > 0 ? round($TOTAL_NOTAS / count($ALUNO_NOTAS['Avaliacao']), 2) : 0;
-                        echo "<td>" . $MEDIA . "</td>";
-                        echo "<td>" . ($MEDIA >= 70 ? '<span class="aprovado">APROVADO</span>' : '<span class="reprovado">REPROVADO</span>') . "</td>";
-                    } ELSE {
-                        echo "<td colspan='" . ($NUM_AVALIACOES + 2) . "'>ERRO: NOTAS NÃO ENCONTRADAS.</td>";
-                    }
-                    echo "</tr>";
-                }
-
-                echo "</tbody></table>";
-            } ELSE {
-                echo "<p>NENHUM DADO DE ALUNO RECEBIDO.</p>";
-            }
-
-            echo "<pre>";
-            print_r($_POST['notas']);
-            echo "</pre>";
-        } ELSE {
-            echo "<p>NENHUM DADO ENVIADO.</p>";
-        }
-        ?>
+        <br>
+        <a href="index.html">Novo Cadastro</a>
     </div>
 </body>
 </html>
